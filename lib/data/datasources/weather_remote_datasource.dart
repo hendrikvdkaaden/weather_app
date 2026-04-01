@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -51,7 +53,14 @@ class WeatherRemoteDatasource implements IWeatherRemoteDatasource {
       'wind_speed_unit': 'ms',
     });
 
-    final response = await _client.get(uri);
+    final http.Response response;
+    try {
+      response = await _client.get(uri).timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw const NoInternetException();
+    } on TimeoutException {
+      throw const RequestTimeoutException();
+    }
 
     if (response.statusCode != 200) {
       throw WeatherApiException(
@@ -80,10 +89,16 @@ class WeatherRemoteDatasource implements IWeatherRemoteDatasource {
       'format': 'json',
     });
 
-    final response = await _client.get(
-      uri,
-      headers: {'User-Agent': 'WeatherApp/1.0'},
-    );
+    final http.Response response;
+    try {
+      response = await _client
+          .get(uri, headers: {'User-Agent': 'WeatherApp/1.0'})
+          .timeout(const Duration(seconds: 10));
+    } on SocketException {
+      throw const NoInternetException();
+    } on TimeoutException {
+      throw const RequestTimeoutException();
+    }
 
     if (response.statusCode != 200) {
       throw WeatherApiException(

@@ -73,6 +73,16 @@ class WeatherBloc extends Bloc<WeatherEvent, WeatherState> {
         errorMessage:
             'GPS is disabled. Enable location services to fetch the weather.',
       ));
+    } on NoInternetException {
+      emit(state.copyWith(
+        status: WeatherStatus.failure,
+        errorMessage: 'No internet connection. Please check your network and try again.',
+      ));
+    } on RequestTimeoutException {
+      emit(state.copyWith(
+        status: WeatherStatus.failure,
+        errorMessage: 'The request took too long. Please try again.',
+      ));
     } on WeatherApiException {
       emit(state.copyWith(
         status: WeatherStatus.failure,

@@ -7,3 +7,11 @@ class WeatherApiException implements Exception {
   @override
   String toString() => 'WeatherApiException($statusCode): $message';
 }
+
+class NoInternetException implements Exception {
+  const NoInternetException();
+}
+
+class RequestTimeoutException implements Exception {
+  const RequestTimeoutException();
+}

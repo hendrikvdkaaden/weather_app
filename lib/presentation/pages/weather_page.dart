@@ -31,32 +31,34 @@ class WeatherPage extends StatelessWidget {
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1565C0), // dark blue
-              Color(0xFF0D1B2A), // near black
-            ],
+      body: SizedBox.expand(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF1565C0), // dark blue
+                Color(0xFF0D1B2A), // near black
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: BlocBuilder<WeatherBloc, WeatherState>(
-            builder: (context, state) {
-              return switch (state.status) {
-                WeatherStatus.initial => const _InitialView(),
-                WeatherStatus.loading => const _LoadingView(),
-                WeatherStatus.success => _SuccessView(
-                    weather: state.weather!,
-                    lastUpdated: state.lastUpdated,
-                  ),
-                WeatherStatus.failure => _ErrorView(message: state.errorMessage),
-                WeatherStatus.permissionDenied =>
-                  _PermissionDeniedView(message: state.errorMessage),
-              };
-            },
+          child: SafeArea(
+            child: BlocBuilder<WeatherBloc, WeatherState>(
+              builder: (context, state) {
+                return switch (state.status) {
+                  WeatherStatus.initial => const _InitialView(),
+                  WeatherStatus.loading => const _LoadingView(),
+                  WeatherStatus.success => _SuccessView(
+                      weather: state.weather!,
+                      lastUpdated: state.lastUpdated,
+                    ),
+                  WeatherStatus.failure => _ErrorView(message: state.errorMessage),
+                  WeatherStatus.permissionDenied =>
+                    _PermissionDeniedView(message: state.errorMessage),
+                };
+              },
+            ),
           ),
         ),
       ),

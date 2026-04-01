@@ -268,6 +268,67 @@ void main() {
 
   group('WeatherApp — error paths', () {
     testWidgets(
+      'shows no internet error message when NoInternetException is thrown',
+      (tester) async {
+        await pumpApp(
+          tester,
+          repository: const FakeWeatherRepository(
+            errorToThrow: NoInternetException(),
+          ),
+        );
+
+        expect(find.text('⚠️'), findsOneWidget);
+        expect(
+          find.textContaining('No internet connection'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('fetch_weather_button')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'shows timeout error message when RequestTimeoutException is thrown',
+      (tester) async {
+        await pumpApp(
+          tester,
+          repository: const FakeWeatherRepository(
+            errorToThrow: RequestTimeoutException(),
+          ),
+        );
+
+        expect(find.text('⚠️'), findsOneWidget);
+        expect(
+          find.textContaining('took too long'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('fetch_weather_button')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'shows no internet error then recovers after retry succeeds',
+      (tester) async {
+        var hasInternet = false;
+        final repo = _TogglableRepository(
+          shouldFail: () => hasInternet ? null : const NoInternetException(),
+        );
+
+        await tester.pumpWidget(WeatherApp(repository: repo));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('No internet connection'), findsOneWidget);
+
+        // Simulate internet becoming available and retry.
+        hasInternet = true;
+        await tester.tap(find.byKey(const Key('fetch_weather_button')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('temperature_text')), findsOneWidget);
+        expect(find.text('⚠️'), findsNothing);
+      },
+    );
+
+    testWidgets(
       'shows error message on WeatherApiException',
       (tester) async {
         await pumpApp(
@@ -362,8 +423,11 @@ void main() {
       'recovery after error — weather data visible after successful retry',
       (tester) async {
         // Start with a failing repository.
-        var shouldFail = true;
-        final repo = _TogglableRepository(shouldFail: () => shouldFail);
+        Exception? errorToThrow = const WeatherApiException(
+          message: 'Temporary error',
+          statusCode: 503,
+        );
+        final repo = _TogglableRepository(shouldFail: () => errorToThrow);
 
         await tester.pumpWidget(WeatherApp(repository: repo));
         await tester.pumpAndSettle();
@@ -373,7 +437,7 @@ void main() {
         expect(find.byKey(const Key('temperature_text')), findsNothing);
 
         // Switch repository to success and tap retry.
-        shouldFail = false;
+        errorToThrow = null;
         await tester.tap(find.byKey(const Key('fetch_weather_button')));
         await tester.pumpAndSettle();
 
@@ -390,10 +454,10 @@ void main() {
 // ---------------------------------------------------------------------------
 
 /// Repository whose failure behaviour can be toggled per call via a callback.
-/// Used in the recovery-after-error test to switch from failing to successful
-/// without rebuilding the widget tree.
+/// [shouldFail] returns the exception to throw, or null for a successful fetch.
+/// Used in recovery tests to change behaviour without rebuilding the widget tree.
 class _TogglableRepository implements WeatherRepository {
-  final bool Function() shouldFail;
+  final Exception? Function() shouldFail;
 
   const _TogglableRepository({required this.shouldFail});
 
@@ -401,12 +465,8 @@ class _TogglableRepository implements WeatherRepository {
   Future<Weather> fetchWeatherForCurrentLocation() async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
 
-    if (shouldFail()) {
-      throw const WeatherApiException(
-        message: 'Temporary error',
-        statusCode: 503,
-      );
-    }
+    final error = shouldFail();
+    if (error != null) throw error;
 
     return FakeWeatherRepository.amsterdamWeather;
   }

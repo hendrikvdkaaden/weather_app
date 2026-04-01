@@ -14,7 +14,6 @@ enum WeatherStatus {
 // Without this pattern, copyWith(errorMessage: null) can never clear an existing value
 // — null would be treated as "no update".
 const _clearString = Object();
-const _clearWeather = Object();
 const _clearDateTime = Object();
 
 class WeatherState extends Equatable {
