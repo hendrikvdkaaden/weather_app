@@ -52,6 +52,8 @@ class WeatherPage extends StatelessWidget {
                   WeatherStatus.success => _SuccessView(
                       weather: state.weather!,
                       lastUpdated: state.lastUpdated,
+                      autoRefreshDuration:
+                          context.read<WeatherBloc>().autoRefreshDuration,
                     ),
                   WeatherStatus.failure => _ErrorView(message: state.errorMessage),
                   WeatherStatus.permissionDenied =>
@@ -153,8 +155,13 @@ class _LoadingView extends StatelessWidget {
 class _SuccessView extends StatefulWidget {
   final Weather weather;
   final DateTime? lastUpdated;
+  final Duration autoRefreshDuration;
 
-  const _SuccessView({required this.weather, required this.lastUpdated});
+  const _SuccessView({
+    required this.weather,
+    required this.lastUpdated,
+    required this.autoRefreshDuration,
+  });
 
   @override
   State<_SuccessView> createState() => _SuccessViewState();
@@ -162,8 +169,6 @@ class _SuccessView extends StatefulWidget {
 
 class _SuccessViewState extends State<_SuccessView> {
   Timer? _minuteTimer;
-
-  static const _autoRefreshDuration = Duration(minutes: 10);
 
   @override
   void initState() {
@@ -193,7 +198,7 @@ class _SuccessViewState extends State<_SuccessView> {
     final updated = widget.lastUpdated;
     if (updated == null) return '';
     final elapsed = DateTime.now().difference(updated).inMinutes;
-    final remaining = _autoRefreshDuration.inMinutes - elapsed;
+    final remaining = widget.autoRefreshDuration.inMinutes - elapsed;
     if (remaining <= 0) return 'Refreshing…';
     return 'Auto-refresh in $remaining ${remaining == 1 ? 'min' : 'min'}';
   }

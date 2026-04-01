@@ -10,19 +10,20 @@ import 'weather_state.dart';
 
 class WeatherBloc extends Bloc<WeatherEvent, WeatherState> {
   final WeatherRepository _repository;
+  final Duration autoRefreshDuration;
   Timer? _autoRefreshTimer;
 
-  static const _autoRefreshDuration = Duration(minutes: 10);
-
-  WeatherBloc({required WeatherRepository repository})
-      : _repository = repository,
+  WeatherBloc({
+    required WeatherRepository repository,
+    this.autoRefreshDuration = const Duration(minutes: 3),
+  })  : _repository = repository,
         super(const WeatherState()) {
     on<WeatherFetchRequested>(_onWeatherFetchRequested);
   }
 
   void _restartAutoRefreshTimer() {
     _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = Timer(_autoRefreshDuration, () {
+    _autoRefreshTimer = Timer(autoRefreshDuration, () {
       add(const WeatherFetchRequested());
     });
   }

@@ -13,11 +13,13 @@ class WeatherApp extends StatelessWidget {
   /// Only for tests that want to observe the initial state —
   /// in production always true so the app starts loading immediately.
   final bool autoFetch;
+  final Duration autoRefreshDuration;
 
   const WeatherApp({
     super.key,
     required this.repository,
     this.autoFetch = true,
+    this.autoRefreshDuration = const Duration(minutes: 3),
   });
 
   @override
@@ -26,7 +28,10 @@ class WeatherApp extends StatelessWidget {
       // Dispatch WeatherFetchRequested on startup so the UI starts
       // loading as soon as the app launches.
       create: (_) {
-        final bloc = WeatherBloc(repository: repository);
+        final bloc = WeatherBloc(
+          repository: repository,
+          autoRefreshDuration: autoRefreshDuration,
+        );
         if (autoFetch) bloc.add(const WeatherFetchRequested());
         return bloc;
       },
