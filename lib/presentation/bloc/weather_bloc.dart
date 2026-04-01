@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/exceptions/location_exceptions.dart';
@@ -8,11 +10,27 @@ import 'weather_state.dart';
 
 class WeatherBloc extends Bloc<WeatherEvent, WeatherState> {
   final WeatherRepository _repository;
+  Timer? _autoRefreshTimer;
+
+  static const _autoRefreshDuration = Duration(minutes: 10);
 
   WeatherBloc({required WeatherRepository repository})
       : _repository = repository,
         super(const WeatherState()) {
     on<WeatherFetchRequested>(_onWeatherFetchRequested);
+  }
+
+  void _restartAutoRefreshTimer() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer(_autoRefreshDuration, () {
+      add(const WeatherFetchRequested());
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _autoRefreshTimer?.cancel();
+    return super.close();
   }
 
   Future<void> _onWeatherFetchRequested(
@@ -29,13 +47,14 @@ class WeatherBloc extends Bloc<WeatherEvent, WeatherState> {
       // (2) Fetch weather data via the repository.
       final weather = await _repository.fetchWeatherForCurrentLocation();
 
-      // (3) Success — store data and timestamp.
+      // (3) Success — store data and timestamp, then restart the auto-refresh timer.
       emit(state.copyWith(
         status: WeatherStatus.success,
         weather: weather,
         lastUpdated: DateTime.now(),
         errorMessage: null,
       ));
+      _restartAutoRefreshTimer();
     } on LocationPermissionDeniedException {
       emit(state.copyWith(
         status: WeatherStatus.permissionDenied,

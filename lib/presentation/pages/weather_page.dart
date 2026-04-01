@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -46,7 +48,10 @@ class WeatherPage extends StatelessWidget {
               return switch (state.status) {
                 WeatherStatus.initial => const _InitialView(),
                 WeatherStatus.loading => const _LoadingView(),
-                WeatherStatus.success => _SuccessView(weather: state.weather!),
+                WeatherStatus.success => _SuccessView(
+                    weather: state.weather!,
+                    lastUpdated: state.lastUpdated,
+                  ),
                 WeatherStatus.failure => _ErrorView(message: state.errorMessage),
                 WeatherStatus.permissionDenied =>
                   _PermissionDeniedView(message: state.errorMessage),
@@ -143,10 +148,53 @@ class _LoadingView extends StatelessWidget {
 // Success
 // ---------------------------------------------------------------------------
 
-class _SuccessView extends StatelessWidget {
+class _SuccessView extends StatefulWidget {
   final Weather weather;
+  final DateTime? lastUpdated;
 
-  const _SuccessView({required this.weather});
+  const _SuccessView({required this.weather, required this.lastUpdated});
+
+  @override
+  State<_SuccessView> createState() => _SuccessViewState();
+}
+
+class _SuccessViewState extends State<_SuccessView> {
+  Timer? _minuteTimer;
+
+  static const _autoRefreshDuration = Duration(minutes: 10);
+
+  @override
+  void initState() {
+    super.initState();
+    // Rebuild every minute so the "updated X minutes ago" text stays current.
+    _minuteTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => setState(() {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _minuteTimer?.cancel();
+    super.dispose();
+  }
+
+  String get _minutesAgoText {
+    final updated = widget.lastUpdated;
+    if (updated == null) return '';
+    final minutes = DateTime.now().difference(updated).inMinutes;
+    if (minutes < 1) return 'Updated just now';
+    return 'Updated $minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
+  }
+
+  String get _autoRefreshCountdownText {
+    final updated = widget.lastUpdated;
+    if (updated == null) return '';
+    final elapsed = DateTime.now().difference(updated).inMinutes;
+    final remaining = _autoRefreshDuration.inMinutes - elapsed;
+    if (remaining <= 0) return 'Refreshing…';
+    return 'Auto-refresh in $remaining ${remaining == 1 ? 'min' : 'min'}';
+  }
 
   String _emojiForCondition(String condition) {
     return switch (condition.toLowerCase()) {
@@ -170,12 +218,12 @@ class _SuccessView extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            _emojiForCondition(weather.condition),
+            _emojiForCondition(widget.weather.condition),
             style: const TextStyle(fontSize: 80),
           ),
           const SizedBox(height: 8),
           Text(
-            '${weather.temperature.toStringAsFixed(1)}°C',
+            '${widget.weather.temperature.toStringAsFixed(1)}°C',
             key: const Key('temperature_text'),
             style: textTheme.displayLarge?.copyWith(
               color: Colors.white,
@@ -184,14 +232,26 @@ class _SuccessView extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            weather.conditionDescription,
+            widget.weather.conditionDescription,
             style: textTheme.titleMedium?.copyWith(color: Colors.white70),
           ),
           const SizedBox(height: 12),
           Text(
-            '${weather.cityName}, ${weather.country}',
+            '${widget.weather.cityName}, ${widget.weather.country}',
             key: const Key('city_name_text'),
             style: textTheme.titleLarge?.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _minutesAgoText,
+            key: const Key('last_updated_text'),
+            style: textTheme.bodySmall?.copyWith(color: Colors.white54),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _autoRefreshCountdownText,
+            key: const Key('auto_refresh_countdown_text'),
+            style: textTheme.bodySmall?.copyWith(color: Colors.white38),
           ),
           const SizedBox(height: 32),
           Row(
@@ -200,17 +260,17 @@ class _SuccessView extends StatelessWidget {
               _StatTile(
                 icon: '🌡️',
                 label: 'Feels like',
-                value: '${weather.feelsLike.toStringAsFixed(1)}°C',
+                value: '${widget.weather.feelsLike.toStringAsFixed(1)}°C',
               ),
               _StatTile(
                 icon: '💧',
                 label: 'Humidity',
-                value: '${weather.humidity}%',
+                value: '${widget.weather.humidity}%',
               ),
               _StatTile(
                 icon: '💨',
                 label: 'Wind',
-                value: '${weather.windSpeed.toStringAsFixed(1)} m/s',
+                value: '${widget.weather.windSpeed.toStringAsFixed(1)} m/s',
               ),
             ],
           ),

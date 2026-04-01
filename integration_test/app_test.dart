@@ -186,6 +186,86 @@ void main() {
     );
   });
 
+  group('WeatherApp — auto-refresh', () {
+    testWidgets(
+      'shows "Updated just now" label immediately after successful fetch',
+      (tester) async {
+        await pumpApp(tester);
+
+        expect(find.byKey(const Key('last_updated_text')), findsOneWidget);
+        expect(find.text('Updated just now'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'shows auto-refresh countdown label after successful fetch',
+      (tester) async {
+        await pumpApp(tester);
+
+        expect(
+          find.byKey(const Key('auto_refresh_countdown_text')),
+          findsOneWidget,
+        );
+        expect(find.text('Auto-refresh in 10 min'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '"Updated X minutes ago" updates after one minute passes',
+      (tester) async {
+        await pumpApp(tester);
+
+        // Confirm starting state.
+        expect(find.text('Updated just now'), findsOneWidget);
+
+        // Advance the clock by 1 minute — triggers the Timer.periodic in _SuccessViewState.
+        await tester.pump(const Duration(minutes: 1));
+
+        expect(find.text('Updated 1 minute ago'), findsOneWidget);
+        expect(find.text('Auto-refresh in 9 min'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'auto-refresh countdown resets to 10 min after manual refresh',
+      (tester) async {
+        await pumpApp(tester);
+
+        // Advance 3 minutes so the countdown reads 7.
+        await tester.pump(const Duration(minutes: 3));
+        expect(find.text('Auto-refresh in 7 min'), findsOneWidget);
+
+        // Manual refresh — wait for the new fetch to complete.
+        await tester.tap(find.byKey(const Key('fetch_weather_button')));
+        await tester.pumpAndSettle();
+
+        // Countdown should be back at 10 after the new successful fetch.
+        expect(find.text('Auto-refresh in 10 min'), findsOneWidget);
+        expect(find.text('Updated just now'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'auto-refresh triggers a new fetch after 10 minutes',
+      (tester) async {
+        await pumpApp(tester);
+
+        // Counter is 1 after the initial auto-fetch.
+        expect(find.text('API Calls: 1'), findsOneWidget);
+
+        // Advance the clock past the 10-minute auto-refresh threshold.
+        // Use pump() so the Timer fires but we can still inspect intermediate
+        // frames; pumpAndSettle handles the resulting fetch.
+        await tester.pump(const Duration(minutes: 10));
+        await tester.pumpAndSettle();
+
+        // The BLoC should have fired a second fetch automatically.
+        expect(find.text('API Calls: 2'), findsOneWidget);
+        expect(find.text('Updated just now'), findsOneWidget);
+      },
+    );
+  });
+
   group('WeatherApp — error paths', () {
     testWidgets(
       'shows error message on WeatherApiException',
